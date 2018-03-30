@@ -1,0 +1,1262 @@
+SpringJdbc
+
+
+****JdbcTemplate
+
+
+Maven Project(SpringJdbc)
+
+
+1) add library(jdk)
+2) set compiler(1.8)
+3) change pom.xml
+    <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.hexa</groupId>
+  <artifactId>SpringJdbc</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>SpringJdbc</name>
+  <url>http://maven.apache.org</url>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <version>4.3.2.RELEASE</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jdbc</artifactId>
+      <version>4.3.2.RELEASE</version>
+    </dependency>
+    <dependency>
+    	<groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>5.1.6</version>
+    </dependency>
+  </dependencies>
+</project>
+
+
+
+4)create resources folder in src
+   and copy file spring-jdbc.xml
+
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+		 http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+		 http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context-3.0.xsd 
+		 http://www.springframework.org/schema/tx 
+		http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+		 http://www.springframework.org/schema/aop 
+		http://www.springframework.org/schema/aop/spring-aop-3.0.xsd">
+
+  <bean id="mydao" class="com.hexa.dao.DaoImpl">
+    <property name="jtemp" ref="jdbcTemplate"/>
+</bean>
+   
+<bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+     <property name="dataSource" ref="mysqlds"/>
+</bean>
+
+<bean id="mysqlds" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+   <property name="driverClassName" value="com.mysql.jdbc.Driver"/>
+   <property name="url" value="jdbc:mysql://localhost:3306/test"/>
+   <property name="username" value="root"/>
+   <property name="password" value="root"/>
+</bean>
+</beans>
+
+
+
+*********************
+create opackage as com.hexa.dao
+and add interface
+
+
+
+package com.hexa.dao;
+
+import java.util.List;
+import java.util.Map;
+
+public interface IDao {
+	List<Map<String, Object>> getStudentsAsMap(String dept);
+}
+
+
+********************
+
+
+create a class DaoImpl in com.hexa.dao[To retrieve data from student table]
+
+package com.hexa.dao;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+
+public class DaoImpl implements IDao {
+private JdbcTemplate jtemp;
+
+
+//setter for spring IOC to do DI
+public void setJtemp(JdbcTemplate jtemp) {
+	this.jtemp = jtemp;
+}
+
+@Override
+public List<Map<String, Object>> getStudentsAsMap(String dept) {
+	//writing sql
+	String sql ="select * from student where dept=?";   
+
+	//Setting parameters
+	Object[] params = {dept};
+
+	//Writing Row mapper
+	List<Map<String, Object>> lst =jtemp.queryForList(sql,params);
+	return lst;
+}
+
+}
+
+
+
+*************************
+
+
+create one package as com.hexa.client
+
+and create class clientA.java
+
+[To display data of student table]
+
+
+package com.hexa.client;
+
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.hexa.dao.IDao;
+
+
+public class ClientA {
+	private static ApplicationContext ctx;
+	static{
+		
+		ctx = new ClassPathXmlApplicationContext("spring-jdbc.xml");
+	}
+
+	public static void main(String[] args) {
+		System.out.println("inside main");
+		IDao dao = ctx.getBean("mydao", IDao.class);
+		List<Map<String, Object>> lst = dao.getStudentsAsMap("ece");
+		for(Map map: lst) {
+			System.out.println(map.get("stu_id"));
+			System.out.println(map.get("stu_name"));
+			System.out.println(map.get("stu_marks"));
+			System.out.println(map.get("dept"));
+			System.out.println(map.get("stu_dob"));
+			System.out.println("**********************");
+		
+		}
+	}
+
+}
+
+
+
+******************************
+
+***To display details of student where sid=?
+To update marks according to student id
+
+
+Interface IDao.java
+
+package com.hexa.dao;
+
+import java.util.List;
+import java.util.Map;
+
+public interface IDao {
+	List<Map<String, Object>> getStudentsAsMap(String dept);
+	Map<String, Object> getStudentAsMap(int sid);
+	int updateMarks(int sid, int marks);
+}
+
+
+***********************
+In DaoImpl
+
+
+
+package com.hexa.dao;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+
+public class DaoImpl implements IDao {
+private JdbcTemplate jtemp;
+
+
+//setter for spring IOC to do DI
+public void setJtemp(JdbcTemplate jtemp) {
+	this.jtemp = jtemp;
+}
+
+@Override
+public List<Map<String, Object>> getStudentsAsMap(String dept) {
+	String sql ="select * from student where dept=?";
+	Object[] params = {dept};
+	List<Map<String, Object>> lst =jtemp.queryForList(sql,params);
+	return lst;
+}
+
+@Override
+public Map<String, Object> getStudentAsMap(int sid) {
+	String sql = "select * from student where stu_id =?";
+	Object[] params = {sid};
+	Map<String, Object> map = jtemp.queryForMap(sql,params);
+	return map;
+}
+
+@Override
+public int updateMarks(int sid, int marks) {
+	String sql = "update student set stu_marks=? where stu_id=?";
+	Object[] params= {marks, sid};
+	int rows =jtemp.update(sql, params);
+	return rows;
+}
+
+}
+
+
+
+**********************************
+for displaying create java class as updateMarks.java in client package
+
+
+	package com.hexa.client;
+	import java.util.List;
+	import java.util.Map;
+
+	import org.springframework.context.ApplicationContext;
+	import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+	import com.hexa.dao.IDao;
+
+
+	public class UpdateMarks {
+		private static ApplicationContext ctx;
+		static{
+			
+			ctx = new ClassPathXmlApplicationContext("spring-jdbc.xml");
+		}
+
+		public static void main(String[] args) {
+			System.out.println("inside main");
+			IDao dao = ctx.getBean("mydao", IDao.class);
+			int rows = dao.updateMarks(1002, 94);
+			System.out.println("no of rows affected"+ rows);
+			
+			
+			
+			System.out.println("find by student Id");
+			Map<String, Object> map1 =dao.getStudentAsMap(1002);
+			System.out.println(map1.get("stu_id"));
+			System.out.println(map1.get("stu_name"));
+			System.out.println(map1.get("stu_marks"));
+			System.out.println(map1.get("dept"));
+			System.out.println(map1.get("stu_dob"));
+			System.out.println("********************************");
+			System.out.println("-------------------------------");
+			
+			
+		}
+	}
+
+
+***************************************************
+
+Display data of student table using rowmapper
+
+
+Create package as com.hexa.entity
+create one class
+Student.java
+
+
+
+package com.hexa.entity;
+
+import java.util.Date;
+
+public class Student {
+	private int sid;
+	private String sname;
+	private int marks;
+	private String dept;
+	private Date dob;
+	public int getSid() {
+		return sid;
+	}
+	public void setSid(int sid) {
+		this.sid = sid;
+	}
+	public String getSname() {
+		return sname;
+	}
+	public void setSname(String sname) {
+		this.sname = sname;
+	}
+	public int getMarks() {
+		return marks;
+	}
+	public void setMarks(int marks) {
+		this.marks = marks;
+	}
+	public String getDept() {
+		return dept;
+	}
+	public void setDept(String dept) {
+		this.dept = dept;
+	}
+	public Date getDob() {
+		return dob;
+	}
+	public void setDob(Date dob) {
+		this.dob = dob;
+	}
+	
+	
+}
+
+
+
+*********************
+in dao package 
+create one class StuMapper
+
+
+
+package com.hexa.dao;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import org.springframework.jdbc.core.RowMapper;
+
+import com.hexa.entity.Student;
+
+public class StuMapper implements RowMapper<Student>{
+
+	@Override
+	public Student mapRow(ResultSet rs, int idx) 
+			throws SQLException {
+		Student stu = new Student();
+		stu.setSid(rs.getInt("stu_id"));
+		stu.setSname(rs.getString("stu_name"));
+		stu.setMarks(rs.getInt("stu_marks"));
+		stu.setDept(rs.getString("dept"));
+		stu.setDob(rs.getDate("stu_dob"));
+		return stu;
+	}
+}
+
+
+******************************
+
+create and interface Idao in dao package
+
+package com.hexa.dao;
+
+import java.util.List;
+import java.util.Map;
+
+import com.hexa.entity.Student;
+
+public interface IDao {
+	List<Map<String, Object>> getStudentsAsMap(String dept);
+	Map<String, Object> getStudentAsMap(int sid);
+	int updateMarks(int sid, int marks);
+	List<Student> getStudents(String dept);
+	Student getStudent(int sid);
+}
+
+
+***************************************
+for row mapper we have to ad some property in pom.xml
+
+
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.hexa</groupId>
+  <artifactId>SpringJdbc</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>SpringJdbc</name>
+  <url>http://maven.apache.org</url>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <version>4.3.2.RELEASE</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jdbc</artifactId>
+      <version>4.3.2.RELEASE</version>
+    </dependency>
+    <dependency>
+    	<groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>5.1.6</version>
+    </dependency>
+  </dependencies>
+</project>
+
+
+
+
+****************************
+in client package create main class
+
+
+package com.hexa.client;
+
+import java.io.Serializable;
+import java.util.List;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.hexa.dao.IDao;
+import com.hexa.entity.Student;
+
+public class ViewStudent {
+	private static ApplicationContext ctx;
+	static{
+		
+		ctx = new ClassPathXmlApplicationContext("spring-jdbc.xml");
+	}
+
+	public static void main(String[] args) {
+		System.out.println("inside main");
+		IDao dao = ctx.getBean("mydao", IDao.class);
+		List<Student> lst =dao.getStudents("ece");
+		for(Student stu: lst) {
+			System.out.println(stu);
+		}
+		
+		System.out.println("---------view by student id using row mapper---------");
+		System.out.println(dao.getStudent(1004));
+}
+}
+	
+	
+***********************
+in student.java
+
+override tostring method
+
+
+*************************************************************
+Displaying student data using annotaions and without spring-jdbc.xml, for this
+
+create one folder in src->main as resources and add one file as hexa.properties
+
+jdriver= com.mysql.jdbc.Driver
+jurl= jdbc:mysql://localhost:3306/test
+uname= root
+pwd= root
+
+--------------------------------------------
+Dao package
+
+create on interface as Idao 
+
+
+package com.hexa.dao;
+
+import java.util.List;
+import java.util.Map;
+
+import com.hexa.entity.Student;
+
+public interface IDao {
+	List<Map<String, Object>> getStudentsAsMap(String dept);
+	Map<String, Object> getStudentAsMap(int sid);
+	int updateMarks(int sid, int marks);
+	List<Student> getStudents(String dept);
+	Student getStudent(int sid);
+}
+
+--------------------------------------
+DaoImpl.java
+
+
+package com.hexa.dao;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
+import com.hexa.entity.Student;
+@Repository("mydao")
+public class DaoImpl implements IDao {
+	
+@Autowired
+private JdbcTemplate jtemp;
+
+@Autowired
+private RowMapper rmap;
+
+
+public void setRmap(RowMapper rmap) {
+	this.rmap = rmap;
+}
+
+//setter for spring IOC to do DI
+public void setJtemp(JdbcTemplate jtemp) {
+	this.jtemp = jtemp;
+}
+
+@Override
+public List<Map<String, Object>> getStudentsAsMap(String dept) {
+	String sql ="select * from student where dept=?";
+	Object[] params = {dept};
+	List<Map<String, Object>> lst =jtemp.queryForList(sql,params);
+	return lst;
+}
+
+@Override
+public Map<String, Object> getStudentAsMap(int sid) {
+	String sql = "select * from student where stu_id =?";
+	Object[] params = {sid};
+	Map<String, Object> map = jtemp.queryForMap(sql,params);
+	return map;
+}
+
+@Override
+public int updateMarks(int sid, int marks) {
+	String sql = "update student set stu_marks=? where stu_id=?";
+	Object[] params= {marks, sid};
+	int rows =jtemp.update(sql, params);
+	return rows;
+}
+
+@Override
+public List<Student> getStudents(String dept) {
+	String sql ="select * from student where dept=?";
+	Object[] params = {dept};
+	List<Student> lst = jtemp.query(sql, params, rmap);
+	return lst;
+}
+
+@Override
+public Student getStudent(int sid) {
+	String sql = "select * from student where stu_id =?";
+	Object[] params = {sid};
+	Student stu =(Student) jtemp.queryForObject(sql, params, rmap);
+	return stu;
+}
+
+}
+
+
+-------------------------------------------------
+
+Studentmapper
+
+package com.hexa.dao;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Component;
+
+import com.hexa.entity.Student;
+@Component("stumapper")
+public class StuMapper implements RowMapper<Student>{
+
+	@Override
+	public Student mapRow(ResultSet rs, int idx) 
+			throws SQLException {
+		Student stu = new Student();
+		stu.setSid(rs.getInt("stu_id"));
+		stu.setSname(rs.getString("stu_name"));
+		stu.setMarks(rs.getInt("stu_marks"));
+		stu.setDept(rs.getString("dept"));
+		stu.setDob(rs.getDate("stu_dob"));
+		return stu;
+	}
+}
+
+
+------------------------------------------
+in entity package
+create one bean class
+
+
+package com.hexa.entity;
+
+import java.util.Date;
+
+public class Student {
+	private int sid;
+	private String sname;
+	private int marks;
+	private String dept;
+	private Date dob;
+	public int getSid() {
+		return sid;
+	}
+	public void setSid(int sid) {
+		this.sid = sid;
+	}
+	public String getSname() {
+		return sname;
+	}
+	public void setSname(String sname) {
+		this.sname = sname;
+	}
+	public int getMarks() {
+		return marks;
+	}
+	public void setMarks(int marks) {
+		this.marks = marks;
+	}
+	public String getDept() {
+		return dept;
+	}
+	public void setDept(String dept) {
+		this.dept = dept;
+	}
+	public Date getDob() {
+		return dob;
+	}
+	public void setDob(Date dob) {
+		this.dob = dob;
+	}
+	@Override
+	public String toString() {
+		return "Student [sid=" + sid + ", sname=" + sname + ", marks=" + marks + ", dept=" + dept + ", dob=" + dob
+				+ "]";
+	}		
+	
+}
+
+----------------------------------------
+in client package
+
+
+clientA.java
+
+package com.hexa.client;
+
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.hexa.dao.IDao;
+
+
+public class ClientA {
+	private static ApplicationContext ctx;
+	static{
+		
+		ctx = new AnnotationConfigApplicationContext(JdbcConfig.class);
+	}
+
+	public static void main(String[] args) {
+		System.out.println("inside main");
+		IDao dao = ctx.getBean("mydao", IDao.class);
+		
+		System.out.println("find by student Id");
+		Map<String, Object> map1 =dao.getStudentAsMap(1004);
+		System.out.println(map1.get("stu_id"));
+		System.out.println(map1.get("stu_name"));
+		System.out.println(map1.get("stu_marks"));
+		System.out.println(map1.get("dept"));
+		System.out.println(map1.get("stu_dob"));
+		System.out.println("********************************");
+		System.out.println("-------------------------------");
+		
+		
+		System.out.println("view all student by dept");
+		List<Map<String, Object>> lst = dao.getStudentsAsMap("ece");
+		for(Map map: lst) {
+			System.out.println(map.get("stu_id"));
+			System.out.println(map.get("stu_name"));
+			System.out.println(map.get("stu_marks"));
+			System.out.println(map.get("dept"));
+			System.out.println(map.get("stu_dob"));
+			System.out.println("********************************");
+		
+		}
+		
+	}
+}
+
+---------------------------------------------
+JdbcCongig.java
+
+
+package com.hexa.client;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+
+@Configuration
+@ComponentScan("com.hexa")
+@PropertySource("classpath:hexa.properties")
+public class JdbcConfig {
+
+	@Autowired
+	private Environment env;
+	
+	@Bean(name="jdbctemp")
+	@Autowired
+	@Qualifier("mydatasource")
+	public JdbcTemplate getJdbcTemplate(DriverManagerDataSource ds){
+		JdbcTemplate jt = new JdbcTemplate();
+		jt.setDataSource(ds);
+		return jt;
+	}
+	
+	@Bean(name="mydatasource")
+	public DriverManagerDataSource getDataSource(){
+		DriverManagerDataSource ds = new DriverManagerDataSource();
+		ds.setDriverClassName(env.getProperty("jdriver"));
+		ds.setUrl(env.getProperty("jurl"));
+		ds.setUsername(env.getProperty("uname"));
+		ds.setPassword(env.getProperty("pwd"));
+		return ds;
+	}
+	
+}
+
+------------------------------------------------
+UpdateMarks.java
+
+
+
+	package com.hexa.client;
+	import java.util.List;
+	import java.util.Map;
+
+	import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+	import com.hexa.dao.IDao;
+
+
+	public class UpdateMarks {
+		private static ApplicationContext ctx;
+		static{
+			
+			ctx = new AnnotationConfigApplicationContext(JdbcConfig.class);
+		}
+
+		public static void main(String[] args) {
+			System.out.println("inside main");
+			IDao dao = ctx.getBean("mydao", IDao.class);
+			int rows = dao.updateMarks(1002, 94);
+			System.out.println("no of rows affected"+ rows);
+			
+			
+			
+			System.out.println("find by student Id");
+			Map<String, Object> map1 =dao.getStudentAsMap(1002);
+			System.out.println(map1.get("stu_id"));
+			System.out.println(map1.get("stu_name"));
+			System.out.println(map1.get("stu_marks"));
+			System.out.println(map1.get("dept"));
+			System.out.println(map1.get("stu_dob"));
+			System.out.println("********************************");
+			System.out.println("-------------------------------");
+			
+			
+		}
+	}
+
+
+--------------------------------------------
+ViewStudent.java
+
+package com.hexa.client;
+
+
+import java.util.List;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.hexa.dao.IDao;
+import com.hexa.entity.Student;
+
+public class ViewStudent {
+	private static ApplicationContext ctx;
+	static{
+		
+		ctx = new AnnotationConfigApplicationContext(JdbcConfig.class);
+	}
+
+	public static void main(String[] args) {
+		System.out.println("inside main");
+		IDao dao = ctx.getBean("mydao", IDao.class);
+		List<Student> lst =dao.getStudents("ece");
+		for(Student stu: lst) {
+			System.out.println(stu);
+		}
+		
+		System.out.println("---------view by student id using row mapper---------");
+		System.out.println(dao.getStudent(1004));
+}
+}
+	
+	
+*******************************************************************
+
+Spring using Hibernate
+
+
+create one maven project as SpringHibernate
+
+add library
+set the compiler
+
+
+
+add dependencies in pom.xml
+
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.hexa</groupId>
+  <artifactId>SpringHibernate</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>SpringHibernate</name>
+  <url>http://maven.apache.org</url>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <version>4.3.2.RELEASE</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-orm</artifactId>
+      <version>4.3.2.RELEASE</version>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <version>5.1.0.Final</version>
+    </dependency>
+    <dependency>
+    	<groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>5.1.6</version>
+    </dependency>
+  </dependencies>
+</project>
+
+
+------------------------------------
+Add spring-hib.xml file in src/main
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+		 http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+		 http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context-3.0.xsd 
+		 http://www.springframework.org/schema/tx 
+		http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+		 http://www.springframework.org/schema/aop 
+		http://www.springframework.org/schema/aop/spring-aop-3.0.xsd">
+
+
+
+	<bean id="mysqlds"
+		class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+		<property name="driverClassName" value="com.mysql.jdbc.Driver" />
+		<property name="url" value="jdbc:mysql://localhost:3306/test" />
+		<property name="username" value="root" />
+		<property name="password" value="root" />
+	</bean>
+
+	<bean id="sessFactory"
+		class="org.springframework.orm.hibernate5.LocalSessionFactoryBean">
+		<property name="dataSource" ref="mysqlds" />
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.show_sql">true</prop>
+				<prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+				<prop key="hibernate.format_sql">true</prop>
+			</props>
+		</property>
+		<property name="packagesToScan">
+			<list>
+				<value>com.hexa.entity</value>
+			</list>
+		</property>
+	</bean>
+
+	<bean id="mydao" class="com.hexa.dao.DaoImpl">
+		<property name="jtemp" ref="jdbcTemplate" />
+	</bean>
+</beans>
+
+----------------------------------------------------------
+
+create one package as com.hexa.entity
+
+and create emp.java and dept.java in that package
+
+
+dept
+
+package com.hexa.entity;
+
+import java.util.Set;
+
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+
+@Entity
+@Table(name="hexa_dept")
+public class Dept {
+
+	@Id
+	@Column(name="did")
+	private int deptId;
+	
+	@Column(name="dname", length=20)
+	private String deptName;
+    
+	@OneToMany(mappedBy="dept",fetch=FetchType.LAZY)
+	private Set<Emp> elist;
+	
+	public Set<Emp> getElist(){
+		return elist;
+	}
+	
+	public void setElist(Set<Emp> elist) {
+		this.elist = elist;
+	}
+
+	public int getDeptId() {
+		return deptId;
+	}
+
+	public void setDeptId(int deptId) {
+		this.deptId = deptId;
+	}
+
+	public String getDeptName() {
+		return deptName;
+	}
+
+	public void setDeptName(String deptName) {
+		this.deptName = deptName;
+	}
+	
+	
+}
+
+
+emp
+
+package com.hexa.entity;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+
+@Entity
+@Table(name="hexa_employee")
+public class Emp {
+
+	@Id
+	@Column(name="emp_id")
+	private int empId;
+	
+	@Column(name="emp_name")
+	private String empName;
+	
+	@Column(name="emp_pwd")
+	private String pwd;
+	
+	@Column(name="emp_img")
+	private String img;
+	
+	@Column(name="emp_sal")
+	private double sal;
+	
+	@ManyToOne
+	@JoinColumn(name="dept_id", referencedColumnName="did")
+	private Dept dept;
+	
+	public Dept getDept() {
+		return dept;
+	}
+
+	public void setDept(Dept dept) {
+		this.dept = dept;
+	}
+	
+
+	public int getEmpId() {
+		return empId;
+	}
+
+	public void setEmpId(int empId) {
+		this.empId = empId;
+	}
+
+	public String getEmpName() {
+		return empName;
+	}
+
+	public void setEmpName(String empName) {
+		this.empName = empName;
+	}
+
+	public String getPwd() {
+		return pwd;
+	}
+
+	public void setPwd(String pwd) {
+		this.pwd = pwd;
+	}
+
+	public String getImg() {
+		return img;
+	}
+
+	public void setImg(String img) {
+		this.img = img;
+	}
+
+	public double getSal() {
+		return sal;
+	}
+
+	public void setSal(double sal) {
+		this.sal = sal;
+	}	
+	
+}
+
+---------------------------------------------------------
+interface empdao in dao package
+
+
+package com.hexa.dao;
+
+import java.util.List;
+
+import com.hexa.entity.Dept;
+
+public interface EmpDao {
+
+		List<Dept> getDepartments();
+}
+
+
+---------------------------------------------------
+EmpDaoImpl.java
+
+
+package com.hexa.dao;
+
+import java.util.List;
+
+import org.hibernate.Query;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+
+import com.hexa.entity.Dept;
+
+public class EmpDaoImpl implements EmpDao{
+	private SessionFactory sfac;
+	
+	//setter for Spring IOC to do DI
+	public void setSfac(SessionFactory sfac) {
+		this.sfac = sfac;
+	}
+
+
+	@Override
+	public List<Dept> getDepartments() {
+		Session sess = sfac.openSession();
+		Query qry= sess.createQuery("from"
+				+ " Dept d");
+		List<Dept> lst = qry.list();
+		return lst;
+	}
+
+}
+
+
+---------------------------------------------
+create client package n create Clienta.java
+
+package com.hexa.client;
+
+import java.util.List;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.hexa.dao.EmpDao;
+import com.hexa.entity.Dept;
+
+
+
+public class ClientA {
+	private static ApplicationContext ctx;
+	static{
+		
+		ctx = new ClassPathXmlApplicationContext("spring-hib.xml");
+	}
+	public static void main(String[] args) {
+		System.out.println("inside main");
+		EmpDao dao = ctx.getBean("mydao", EmpDao.class);
+		List<Dept> lst = dao.getDepartments();
+		lst.forEach(System.out::println);
+
+	}
+
+}
+
+**********************************************************
+
+displaying data of dept and emp table using spring-hibernate using annotation
+for this we need HibernateConfig.java and hexa.properties
+
+create 
+
+
+
+
+
+
+
+****************************************************************************
+Spring MVC
+
+
+ create dynamic project
+Add the path of jdk
+set the compiler
+add server(properties->add library->server runtime->finish)
+add web.xml in web-inf folder
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

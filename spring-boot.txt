@@ -1,0 +1,261 @@
+Standalone application using hibernate
+Starters- starter-parent
+	  starter-data-jpa
+
+-application.properties
+
+spring.datasource.driver-class-name=com.mysql.jdbc.Driver
+spring.datasource.url=jdbc:mysql://localhost:3306/test
+spring.datasource.username=root
+spring.datasource.password=root
+
+spring.jpa.show-sql=true
+spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
+
+
+
+
+Student.java
+
+package com.hexa.entity;
+
+import java.util.Date;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
+
+@Entity()
+@Table(name="student")
+public class Student {
+	
+	@Id
+	@Column(name="stu_id")
+	private int stuId;
+	
+	@Column(name="stu_name", length=45)
+	private String stuName;
+	
+	@Column(name="dept", length=20)
+	private String dept;
+	
+	@Column(name="stu_dob")
+	private Date dob;
+	
+	@Column(name="stu_marks")
+	private int marks;
+
+	public int getStuId() {
+		return stuId;
+	}
+
+	public void setStuId(int stuId) {
+		this.stuId = stuId;
+	}
+
+	public String getStuName() {
+		return stuName;
+	}
+
+	public void setStuName(String stuName) {
+		this.stuName = stuName;
+	}
+
+	public String getDept() {
+		return dept;
+	}
+
+	public void setDept(String dept) {
+		this.dept = dept;
+	}
+
+	public Date getDob() {
+		return dob;
+	}
+
+	public void setDob(Date dob) {
+		this.dob = dob;
+	}
+
+	public int getMarks() {
+		return marks;
+	}
+
+	public void setMarks(int marks) {
+		this.marks = marks;
+	}
+
+	@Override
+	public String toString() {
+		
+		return stuId + " " + stuName + " " + marks 
+				+ " " + dept + " " + dob;
+	}
+	
+	
+	
+	
+}
+
+
+
+
+in dao package
+IDao.java
+
+package com.hexa.dao;
+
+import java.util.List;
+
+import com.hexa.entity.Student;
+
+public interface IDao {
+	List<Student> getStudents();
+	List<Student> getStudents(String dept);
+	Student getStudent(int sid); 
+	int addStudent(Student stu) throws IDException;
+}
+
+
+
+DaoImpl.java
+
+package com.hexa.dao;
+
+import java.util.List;
+
+import org.hibernate.HibernateException;
+import org.hibernate.Query;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+
+import com.hexa.entity.Student;
+@Repository("studao") 	    ...//tells the class is component class
+public class DaoImpl implements IDao {
+
+	@Autowired             //injecting sessionfactory by IOC container
+	private SessionFactory sfac;
+
+
+///using hql, creating session and writing methods
+	@Override
+	public List<Student> getStudents() {
+		Session sess = sfac.openSession();
+		Query qry = sess.createQuery("from Student s");
+		List<Student> lst = qry.list();
+		sess.close();
+		return lst;
+	}
+
+	@Override
+	public List<Student> getStudents(String dept) {
+		Session sess = sfac.openSession();
+		Query qry = sess.createQuery("from Student s where dept=?");
+		qry.setString(0, dept);
+		List<Student> lst = qry.list();
+		sess.close();
+		return lst;
+		
+	}
+
+	@Override
+	public Student getStudent(int sid) {
+		Session sess = sfac.openSession();
+		Student stu = sess.get(Student.class, sid);
+		sess.close();
+		return stu;
+	}
+
+
+/// converting the exception into userdefined message
+	@Override
+	public int addStudent(Student stu) throws IDException {
+		Session sess = sfac.openSession();
+		Transaction tx = sess.beginTransaction();
+		try {
+			sess.save(stu);
+			tx.commit();
+		}catch(HibernateException ex) {
+			tx.rollback();
+			throw new IDException("ID already exists",ex);
+		}finally {
+			sess.close();
+		}
+		return 1;
+	}
+	
+}
+
+
+IDException.java
+
+package com.hexa.dao;
+
+public class IDException extends Exception {
+
+	public IDException(String arg0, Throwable arg1) {
+		super(arg0, arg1);
+		
+	}
+
+	public IDException(String arg0) {
+		super(arg0);
+		
+	}
+
+}
+
+
+SpringBootHibernateApplication
+
+package com.hexa;
+
+import java.util.List;
+
+import javax.persistence.EntityManagerFactory;
+
+import org.hibernate.SessionFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.Bean;
+
+import com.hexa.dao.IDao;
+import com.hexa.entity.Student;
+
+@SpringBootApplication
+@EntityScan("com.hexa.entity")
+public class SpringBootHibernateApplication 
+				implements CommandLineRunner{
+	
+	@Autowired
+	private EntityManagerFactory emf;
+	
+	@Autowired
+	private IDao dao;
+	
+	@Bean
+	public SessionFactory getSessionFactory() {
+		return emf.unwrap(SessionFactory.class);
+	}
+	public static void main(String[] args) {
+		SpringApplication.run(SpringBootHibernateApplication.class, args);
+	}
+	@Override
+	public void run(String... arg0) throws Exception {
+		List<Student> lst =dao.getStudents();
+		lst.forEach(System.out::println);
+		
+	}
+}
+
+
+
+
+
